@@ -64,18 +64,24 @@ user "riak" do
   system true
 end
 
-remote_file "#{Chef::Config[:file_cache_path]}/#{package_file}" do
+if not node[:vagrant_config_file_cache_path]
+  file_cache_path = Chef::Config[:file_cache_path]
+else
+  file_cache_path = node[:vagrant_config_file_cache_path]
+end
+
+remote_file "#{file_cache_path}/#{package_file}" do
   source package_uri
   owner "root"
   mode 0644
   checksum node['riak']['package']['source_checksum']
-  not_if { File.exists?("#{Chef::Config[:file_cache_path]}/#{package_file}") }
+  not_if { File.exists?("#{file_cache_path}/#{package_file}") }
 end
 
 case node['riak']['package']['type']
 when "binary"
   package package_name do
-    source "#{Chef::Config[:file_cache_path]}/#{package_file}"
+    source "#{file_cache_path}/#{package_file}"
     action :install
     options case node['platform']
             when "debian","ubuntu"
@@ -88,17 +94,17 @@ when "binary"
   end
 when "source"
   execute "riak-src-unpack" do
-    cwd Chef::Config[:file_cache_path]
+    cwd file_cache_path
     command "tar xvfz #{package_file}"
   end
 
   execute "riak-src-build" do
-    cwd "#{Chef::Config[:file_cache_path]}/#{base_filename}"
+    cwd "#{file_cache_path}/#{base_filename}"
     command "make clean all rel"
   end
 
   execute "riak-src-install" do
-    command "mv #{Chef::Config[:file_cache_path]}/#{base_filename}/rel/riak #{node['riak']['package']['prefix']}"
+    command "mv #{file_cache_path}/#{base_filename}/rel/riak #{node['riak']['package']['prefix']}"
     not_if { File.directory?("#{node['riak']['package']['prefix']}/riak") }
   end
 end
